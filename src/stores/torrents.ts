@@ -1,11 +1,12 @@
 import { useSearchQuery } from '@/composables'
-import { SortOptions, TorrentState } from '@/constants/qbit'
+import { TorrentState } from '@/constants/qbit'
 import { extractHostname } from '@/helpers'
 import { qbit } from '@/services'
-import { AddTorrentPayload, GetTorrentPayload } from '@/types/qbit/payloads'
+import { AddTorrentPayload } from '@/types/qbit/payloads'
 import { Torrent } from '@/types/vuetorrent'
+import { useSorted } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, MaybeRefOrGetter, reactive, ref, toValue } from 'vue'
+import { computed, MaybeRefOrGetter, ref, toValue } from 'vue'
 
 export const useTorrentStore = defineStore(
   'torrents',
@@ -24,7 +25,11 @@ export const useTorrentStore = defineStore(
     const tagFilter = ref<(string | null)[]>([])
     const trackerFilter = ref<(string | null)[]>([])
 
-    const torrentsWithFilters = computed(() => {
+    const sortCriterias = ref<{ value: keyof Torrent, reverse: boolean }[]>([
+      { value: 'added_on', reverse: false }
+    ])
+
+    const torrentsWithFilters = useSorted(() => {
       return torrents.value.filter(torrent => {
         if (statusFilter.value.length > 0 && isStatusFilterActive.value && !statusFilter.value.includes(torrent.state)) return false
         if (categoryFilter.value.length > 0 && isCategoryFilterActive.value && !categoryFilter.value.includes(torrent.category)) return false
@@ -36,41 +41,31 @@ export const useTorrentStore = defineStore(
 
         return true
       })
+    }, (a, b) => {
+      let i = 0
+      let compareResult = 0
+      while (i < sortCriterias.value.length && compareResult === 0) {
+        const { value, reverse } = sortCriterias.value.at(i++)!
+        const av = a[value]
+        const bv = b[value]
+        let compareFn
+        if (typeof av === 'string') {
+          compareFn = (x: string, y: string) => x.localeCompare(y)
+        } else {
+          console.warn(`unknown sort criteria: ${ value } -> ${ typeof value }`)
+          continue
+        }
+        compareResult = compareFn(av, bv)
+        if (reverse) compareResult = -compareResult
+      }
+      return compareResult
     })
     const filteredTorrents = computed(() => searchQuery.results.value)
-
-    const sortOptions = reactive({
-      isCustomSortEnabled: false,
-      sortBy: SortOptions.DEFAULT,
-      reverseOrder: false
-    })
-    const getTorrentsPayload = computed<GetTorrentPayload>(() => {
-      return {
-        sort: sortOptions.isCustomSortEnabled ? SortOptions.DEFAULT : sortOptions.sortBy,
-        reverse: sortOptions.reverseOrder
-      }
-    })
 
     const searchQuery = useSearchQuery(
       torrentsWithFilters,
       () => (isTextFilterActive.value ? textFilter.value : null),
-      torrent => torrent.name,
-      results => {
-        if (sortOptions.isCustomSortEnabled) {
-          if (sortOptions.sortBy === 'priority') {
-            results.sort((a, b) => {
-              if (a.priority > 0 && b.priority > 0) return a.priority - b.priority
-              else if (a.priority <= 0 && b.priority <= 0) return a.added_on - b.added_on
-              else if (a.priority <= 0) return 1
-              else return -1
-            })
-          } else {
-            results.sort((a, b) => a[sortOptions.sortBy] - b[sortOptions.sortBy] || a.added_on - b.added_on)
-          }
-          if (sortOptions.reverseOrder) results.reverse()
-        }
-        return results
-      }
+      torrent => torrent.name
     )
 
     async function setTorrentCategory(hashes: string[], category: string) {
@@ -154,10 +149,9 @@ export const useTorrentStore = defineStore(
       categoryFilter,
       tagFilter,
       trackerFilter,
+      sortCriterias,
       torrentsWithFilters,
       filteredTorrents,
-      sortOptions,
-      getTorrentsPayload,
       searchQuery,
       setTorrentCategory,
       addTorrentTags,
@@ -195,7 +189,7 @@ export const useTorrentStore = defineStore(
             'tagFilter',
             'isTrackerFilterActive',
             'trackerFilter',
-            'sortOptions'
+            'sortCriterias'
           ]
         }
       ]

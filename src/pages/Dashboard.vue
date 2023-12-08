@@ -28,7 +28,7 @@ const {
 const dialogStore = useDialogStore()
 const maindataStore = useMaindataStore()
 const torrentStore = useTorrentStore()
-const { filteredTorrents, sortOptions } = storeToRefs(torrentStore)
+const { filteredTorrents, sortCriterias } = storeToRefs(torrentStore)
 const vuetorrentStore = useVueTorrentStore()
 
 const torrentSortOptions = [
@@ -86,7 +86,6 @@ const torrentSortOptions = [
   { value: 'uploaded_session', title: t('dashboard.sortBy.uploaded_session') },
   { value: 'upspeed', title: t('dashboard.sortBy.upspeed') }
 ].sort((a, b) => a.title.localeCompare(b.title))
-torrentSortOptions.splice(0, 0, { value: '', title: t('dashboard.sortBy.default') })
 
 const isSearchFilterVisible = ref(false)
 const trcProperties = reactive({
@@ -332,6 +331,7 @@ onBeforeUnmount(() => {
                        @click="displayMode = DashboardDisplayMode.TABLE" />
         </v-list>
       </v-menu>
+      <!-- TODO: update with multi sort
       <v-tooltip :text="t('dashboard.toggleSortOrder')" location="top">
         <template v-slot:activator="{ props }">
           <v-btn
@@ -351,6 +351,7 @@ onBeforeUnmount(() => {
           hide-details
           variant="solo-filled" />
       </div>
+      -->
       <v-col class="align-center justify-center">
         <span class="text-uppercase" style="float: right; font-size: 0.8em">
           {{ torrentCountString }}

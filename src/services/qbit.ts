@@ -162,7 +162,7 @@ export class QBitApi {
       .get('/rss/items', { params: { withData } })
       .then(res => res.data)
       .then(payload => {
-        const feeds = []
+        const feeds = [] as Feed[]
         for (const key in payload) {
           feeds.push({ name: key, ...payload[key] })
         }
